@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kuberhealthy-checks
+  namespace: kuberhealthy
+data:
+  checks.json: |
+    {
+      "checks": [
+        {
+          "name": "dns-check",
+          "namespace": "default",
+          "runInterval": 60,
+          "timeout": 30,
+          "podSpec": {
+            "image": "busybox:latest",
+            "command": ["sh", "-c"],
+            "args": ["nslookup kubernetes.default.svc.cluster.local && echo 'DNS check passed'"]
+          }
+        },
+        {
+          "name": "http-check",
+          "namespace": "default",
+          "runInterval": 120,
+          "timeout": 60,
+          "podSpec": {
+            "image": "curlimages/curl:latest",
+            "command": ["sh", "-c"],
+            "args": ["curl -f http://kubernetes.default.svc.cluster.local:443 || exit 1"]
+          }
+        },
+        {
+          "name": "pod-lifecycle-check",
+          "namespace": "default",
+          "runInterval": 300,
+          "timeout": 120,
+          "podSpec": {
+            "image": "busybox:latest",
+            "command": ["sh", "-c"],
+            "args": ["echo 'Testing pod lifecycle' && sleep 10 && echo 'Success'"]
+          }
+        }
+      ]
+    }

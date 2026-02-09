@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kuberhealthy
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kuberhealthy
+  namespace: kuberhealthy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kuberhealthy
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/status"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kuberhealthy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kuberhealthy
+subjects:
+  - kind: ServiceAccount
+    name: kuberhealthy
+    namespace: kuberhealthy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kuberhealthy
+  namespace: kuberhealthy
+  labels:
+    app: kuberhealthy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kuberhealthy
+  template:
+    metadata:
+      labels:
+        app: kuberhealthy
+    spec:
+      serviceAccountName: kuberhealthy
+      containers:
+        - name: kuberhealthy
+          image: kuberhealthy-java:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "8080"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuberhealthy
+  namespace: kuberhealthy
+  labels:
+    app: kuberhealthy
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: kuberhealthy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuberhealthy-metrics
+  namespace: kuberhealthy
+  labels:
+    app: kuberhealthy
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: metrics
+  selector:
+    app: kuberhealthy
